@@ -29,6 +29,22 @@ export const RouteComparisonSection: React.FC<RouteComparisonSectionProps> = ({
 
   const { baseline_plan, proposed_plan, improvement_delivered_count, improvement_delivered_percentage, summary_verdict } = comparison;
 
+  const baseExpired = comparison.baseline_expired_count ?? baseline_plan.expired_shipments_count;
+  const propExpired = comparison.proposed_expired_count ?? proposed_plan.expired_shipments_count;
+  const spoilageReductionPct =
+    comparison.spoilage_reduction_percentage ??
+    (baseExpired > 0 ? Math.round(((baseExpired - propExpired) / baseExpired) * 1000) / 10 : 0);
+  const timePctChange =
+    comparison.time_difference_percentage ??
+    (baseline_plan.total_travel_time_minutes > 0
+      ? Math.round((comparison.time_difference_minutes / baseline_plan.total_travel_time_minutes) * 1000) / 10
+      : 0);
+  const distPctChange =
+    comparison.distance_difference_percentage ??
+    (baseline_plan.total_distance_km > 0
+      ? Math.round((comparison.distance_difference_km / baseline_plan.total_distance_km) * 1000) / 10
+      : 0);
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
       {/* Section Header */}
@@ -246,6 +262,57 @@ export const RouteComparisonSection: React.FC<RouteComparisonSectionProps> = ({
               <div className="p-2.5 rounded-lg bg-white border border-sky-200">
                 <span className="text-[11px] text-slate-500 block">At-Risk Collected Safe:</span>
                 <span className="font-bold text-orange-600">{proposed_plan.at_risk_shipments_count} shipments protected</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Trade-Off Analysis & Competing Objectives Card */}
+          <div className="md:col-span-2 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/60 to-indigo-50/60 p-5 space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-blue-200/80">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-blue-700" />
+                <h4 className="text-xs font-bold text-blue-950 uppercase tracking-wider">
+                  Competing Objectives Evaluation: Thermal Safety vs. Fleet Operational Efficiency
+                </h4>
+              </div>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800 border border-blue-300">
+                Multi-Objective Trade-Off
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-700 leading-relaxed">
+              {comparison.trade_off_analysis ||
+                'Objective A prioritizes thermal preservation and milk rescue; Objective B prioritizes shortest vehicle travel distance and operational fleet transit time. A small detour investment enables significant spoilage reduction.'}
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2 text-center text-xs">
+              <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Rescued Milk Batches</span>
+                <span className="text-lg font-black text-emerald-600">+{improvement_delivered_count} Shipments</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">+{improvement_delivered_percentage}% deliverable safe</span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Spoilage Reduction</span>
+                <span className="text-lg font-black text-emerald-700">
+                  {spoilageReductionPct > 0 ? `-${spoilageReductionPct}%` : '0%'} Expired
+                </span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  {baseExpired} expired down to {propExpired}
+                </span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Travel Time Investment</span>
+                <span className="text-lg font-black text-slate-800">+{comparison.time_difference_minutes} min</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  +{timePctChange}% detour overhead
+                </span>
+              </div>
+              <div className="p-3 bg-white rounded-lg border border-blue-100 shadow-2xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">Distance Investment</span>
+                <span className="text-lg font-black text-slate-800">+{comparison.distance_difference_km} km</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">
+                  +{distPctChange}% route detour
+                </span>
               </div>
             </div>
           </div>

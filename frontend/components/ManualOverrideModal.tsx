@@ -19,6 +19,7 @@ export const ManualOverrideModal: React.FC<ManualOverrideModalProps> = ({
 }) => {
   const [newScore, setNewScore] = useState<number>(95);
   const [newAction, setNewAction] = useState<ActionType>('COLLECT NOW');
+  const [operatorId, setOperatorId] = useState<string>('DISPATCH-OPERATOR-1');
   const [reason, setReason] = useState<string>('Farmer reported on-site cooler failure. High value batch requires immediate emergency pickup.');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -36,6 +37,7 @@ export const ManualOverrideModal: React.FC<ManualOverrideModalProps> = ({
         overridden_priority_score: Number(newScore),
         overridden_action: newAction,
         reason: reason.trim(),
+        operator_id: operatorId.trim() || 'DISPATCH-OPERATOR-1',
       });
       setSuccessMessage('Priority override successfully applied and recorded in audit log.');
       setTimeout(() => {
@@ -148,6 +150,21 @@ export const ManualOverrideModal: React.FC<ManualOverrideModalProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Operator Identifier */}
+          <div>
+            <label htmlFor="operator-id-input" className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Operator Identifier / Call Sign:
+            </label>
+            <input
+              id="operator-id-input"
+              type="text"
+              value={operatorId}
+              onChange={(e) => setOperatorId(e.target.value)}
+              placeholder="e.g. DISPATCH-LEAD-1"
+              className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+            />
           </div>
 
           {/* Justification / Reason */}

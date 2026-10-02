@@ -71,6 +71,7 @@ export interface PrioritizedShipmentDetail {
   manual_review_required: boolean;
   fallback_message: string | null;
   model_label: string;
+  is_thermal_exhausted?: boolean;
 
   // Prioritization
   priority_score: number;
@@ -110,6 +111,13 @@ export interface RouteComparison {
   time_difference_minutes: number;
   distance_difference_km: number;
   summary_verdict: string;
+  baseline_expired_count?: number;
+  proposed_expired_count?: number;
+  rescued_volume_litres?: number;
+  time_difference_percentage?: number;
+  distance_difference_percentage?: number;
+  spoilage_reduction_percentage?: number;
+  trade_off_analysis?: string;
 }
 
 export interface OverrideRequest {
@@ -117,6 +125,7 @@ export interface OverrideRequest {
   overridden_priority_score: number;
   overridden_action: ActionType;
   reason: string;
+  operator_id?: string;
 }
 
 export interface OverrideRecord {
@@ -127,6 +136,28 @@ export interface OverrideRecord {
   new_action: string;
   reason: string;
   timestamp: string;
+  operator_id?: string;
+  audit_id?: string;
+}
+
+export interface EdgeCaseAlert {
+  alert_id: string;
+  shipment_id: string;
+  alert_type: string;
+  severity: 'CRITICAL' | 'HIGH' | 'WARNING' | 'INFO';
+  title: string;
+  description: string;
+  recommended_action: string;
+  timestamp: string;
+}
+
+export interface DeliveryVerificationResponse {
+  total_stops: number;
+  delivered_before_expiry_count: number;
+  delivered_before_expiry_percentage: number;
+  expired_count: number;
+  expired_percentage: number;
+  stops: PrioritizedShipmentDetail[];
 }
 
 export interface RiskCounts {
@@ -142,6 +173,7 @@ export interface SummaryKPIs {
   total_milk_volume_litres: number;
   high_risk_shipments: number;
   critical_risk_shipments: number;
+  thermal_exhausted_shipments?: number;
   average_remaining_thermal_life_hours: number;
   shipments_at_risk_of_expiry: number;
   deliverable_before_expiry_percentage: number;
@@ -152,6 +184,7 @@ export interface SummaryKPIs {
   location_unavailable_count: number;
   total_overrides_applied: number;
   simulation_label: string;
+  trade_off_summary?: string;
 }
 
 export interface HealthStatus {
@@ -160,4 +193,5 @@ export interface HealthStatus {
   total_shipments_loaded: number;
   version: string;
   simulation_mode: boolean;
+  active_overrides_count?: number;
 }

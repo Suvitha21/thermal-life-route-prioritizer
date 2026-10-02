@@ -92,7 +92,9 @@ export const PriorityView: React.FC<PriorityViewProps> = ({
                   <span className="text-slate-500 mr-2">
                     Score: {ov.original_priority_score} → <strong className="text-indigo-700">{ov.new_priority_score}</strong> ({ov.new_action})
                   </span>
-                  <p className="text-[11px] text-slate-600 italic mt-0.5">Reason: “{ov.reason}”</p>
+                  <p className="text-[11px] text-slate-600 italic mt-0.5">
+                    Reason: “{ov.reason}” • Operator: <span className="font-semibold text-slate-700">{ov.operator_id || 'DISPATCH-OPERATOR-1'}</span> • Audit ID: <span className="font-mono text-slate-700">{ov.audit_id || 'OVR-LOG'}</span>
+                  </p>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400 shrink-0">{ov.timestamp}</span>
               </div>

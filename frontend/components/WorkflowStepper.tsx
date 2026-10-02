@@ -78,11 +78,15 @@ const workflowSteps = [
     icon: CheckCircle2,
     color: 'text-emerald-600',
     hoverBg: 'hover:border-emerald-400 hover:bg-emerald-50/70',
-    badge: '+22.2% Gain',
+    badge: 'Arrival Audit',
   },
 ];
 
-export const WorkflowStepper: React.FC = () => {
+interface WorkflowStepperProps {
+  deliverableGain?: number;
+}
+
+export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({ deliverableGain }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 mb-6">
       {/* Stepper Header */}
@@ -121,7 +125,9 @@ export const WorkflowStepper: React.FC = () => {
                     <Icon className="h-4 w-4" />
                   </div>
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white text-slate-600 border border-slate-200 shadow-2xs font-mono">
-                    {step.badge}
+                    {step.id === 'delivery' && deliverableGain !== undefined
+                      ? `+${deliverableGain}% Gain`
+                      : step.badge}
                   </span>
                 </div>
 

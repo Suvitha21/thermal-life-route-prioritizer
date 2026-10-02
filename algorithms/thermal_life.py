@@ -34,24 +34,33 @@ class ThermalLifeEvaluation:
     manual_review_required: bool
     fallback_message: Optional[str]
     model_label: str = MODEL_DESCRIPTION
+    is_thermal_exhausted: bool = False
 
 
 def calculate_temperature_ratio(temperature_c: float, baseline_temp_c: float = BASELINE_TEMPERATURE_C) -> float:
     """
     temperature_ratio = max(0.5, temperature / baseline_temperature)
+    Gracefully handles non-numeric and negative values.
     """
+    try:
+        temp = float(temperature_c)
+    except (ValueError, TypeError):
+        temp = baseline_temp_c
     if baseline_temp_c <= 0:
         baseline_temp_c = BASELINE_TEMPERATURE_C
-    return max(0.5, temperature_c / baseline_temp_c)
+    return max(0.5, temp / baseline_temp_c)
 
 
 def calculate_packaging_multiplier(packaging_performance: float) -> float:
     """
     packaging_multiplier = max(1.0, 2.0 - packaging_performance)
     packaging_performance should normally be between 0.0 and 1.0.
+    Invalid or out-of-range inputs are safely sanitized.
     """
-    # Sanitize invalid/negative packaging performance
-    safe_performance = max(0.0, min(1.0, float(packaging_performance)))
+    try:
+        safe_performance = max(0.0, min(1.0, float(packaging_performance)))
+    except (ValueError, TypeError):
+        safe_performance = 0.5  # safe standard default
     return max(1.0, 2.0 - safe_performance)
 
 
@@ -95,8 +104,15 @@ def calculate_remaining_thermal_life(
     """
     remaining_thermal_life = max(0, initial_thermal_life_hours - total_consumed)
     """
-    safe_initial = max(0.0, float(initial_thermal_life_hours))
-    return max(0.0, safe_initial - total_consumed_hours)
+    try:
+        safe_initial = max(0.0, float(initial_thermal_life_hours))
+    except (ValueError, TypeError):
+        safe_initial = 12.0
+    try:
+        safe_consumed = max(0.0, float(total_consumed_hours))
+    except (ValueError, TypeError):
+        safe_consumed = 0.0
+    return max(0.0, safe_initial - safe_consumed)
 
 
 def calculate_thermal_buffer(
@@ -110,7 +126,13 @@ def calculate_thermal_buffer(
     """
     if travel_time_minutes is None:
         return None, None
-    travel_time_hours = max(0.0, float(travel_time_minutes)) / 60.0
+    try:
+        minutes = float(travel_time_minutes)
+        if minutes < 0:
+            return None, None
+    except (ValueError, TypeError):
+        return None, None
+    travel_time_hours = minutes / 60.0
     thermal_buffer = remaining_thermal_life_hours - travel_time_hours
     return travel_time_hours, thermal_buffer
 
@@ -193,8 +215,44 @@ def evaluate_shipment_thermal_life(
     Complete thermal life evaluation for a single shipment with robust edge case handling.
     """
     # Validation & Fallback Check: Sensor data
-    sensor_unavailable = temperature_history is None or len(temperature_history) == 0
-    location_unavailable = travel_time_minutes is None or distance_km is None
+    clean_history: List[float] = []
+    has_corrupt_readings = False
+
+    if temperature_history is not None:
+        for t in temperature_history:
+            try:
+                val = float(t)
+                # Physical milk viability check (-5.0°C to 45.0°C)
+                if -5.0 <= val <= 45.0:
+                    clean_history.append(val)
+                else:
+                    has_corrupt_readings = True
+            except (ValueError, TypeError):
+                has_corrupt_readings = True
+
+    sensor_unavailable = len(clean_history) == 0
+
+    try:
+        safe_distance = float(distance_km) if distance_km is not None and float(distance_km) >= 0 else None
+    except (ValueError, TypeError):
+        safe_distance = None
+
+    try:
+        safe_travel_min = float(travel_time_minutes) if travel_time_minutes is not None and float(travel_time_minutes) >= 0 else None
+    except (ValueError, TypeError):
+        safe_travel_min = None
+
+    location_unavailable = safe_travel_min is None or safe_distance is None
+
+    try:
+        safe_initial_life = max(0.0, float(initial_thermal_life_hours))
+    except (ValueError, TypeError):
+        safe_initial_life = 12.0
+
+    try:
+        safe_max_temp = float(maximum_safe_temperature_c)
+    except (ValueError, TypeError):
+        safe_max_temp = DEFAULT_MAX_SAFE_TEMPERATURE_C
 
     fallback_messages = []
     if sensor_unavailable:
@@ -204,21 +262,25 @@ def evaluate_shipment_thermal_life(
         max_temp = None
         temp_breach = False
         consumed = 0.0
-        remaining_life = initial_thermal_life_hours
-        fallback_messages.append(
-            "Temperature data unavailable — using last known operational state / manual review required."
-        )
+        remaining_life = safe_initial_life
+        if has_corrupt_readings:
+            fallback_messages.append(
+                "Temperature telemetry corrupted or out of physical limits — manual review required."
+            )
+        else:
+            fallback_messages.append(
+                "Temperature data unavailable — using last known operational state / manual review required."
+            )
     else:
         sensor_status = "ONLINE"
-        clean_history = [float(t) for t in temperature_history]
         latest_temp = clean_history[-1]
         avg_temp = sum(clean_history) / len(clean_history)
         max_temp = max(clean_history)
-        temp_breach = latest_temp >= maximum_safe_temperature_c
+        temp_breach = latest_temp >= safe_max_temp
         consumed = calculate_total_thermal_consumed(
             clean_history, packaging_performance, reading_interval_hours, baseline_temp_c
         )
-        remaining_life = calculate_remaining_thermal_life(initial_thermal_life_hours, consumed)
+        remaining_life = calculate_remaining_thermal_life(safe_initial_life, consumed)
 
     # Validation & Fallback Check: Location & Travel data
     if location_unavailable:
@@ -228,20 +290,21 @@ def evaluate_shipment_thermal_life(
         fallback_messages.append("Location unavailable — route feasibility cannot be confirmed.")
     else:
         travel_time_hours, thermal_buffer = calculate_thermal_buffer(
-            remaining_life, travel_time_minutes
+            remaining_life, safe_travel_min
         )
         if thermal_buffer is not None:
             route_feasibility = "FEASIBLE" if thermal_buffer > 0.0 else "INFEASIBLE"
         else:
             route_feasibility = "UNKNOWN"
 
-    manual_review = sensor_unavailable or location_unavailable or (remaining_life <= 0.0)
+    is_exhausted = remaining_life <= 0.0
+    manual_review = sensor_unavailable or location_unavailable or is_exhausted
 
     risk_level = classify_risk(
         thermal_buffer_hours=thermal_buffer,
         remaining_thermal_life_hours=remaining_life,
         latest_temperature_c=latest_temp,
-        maximum_safe_temperature_c=maximum_safe_temperature_c,
+        maximum_safe_temperature_c=safe_max_temp,
         sensor_unavailable=sensor_unavailable,
         location_unavailable=location_unavailable,
     )
@@ -255,7 +318,7 @@ def evaluate_shipment_thermal_life(
         average_temperature_c=round(avg_temp, 2) if avg_temp is not None else None,
         maximum_temperature_c=round(max_temp, 2) if max_temp is not None else None,
         temperature_breach=temp_breach,
-        initial_thermal_life_hours=round(float(initial_thermal_life_hours), 2),
+        initial_thermal_life_hours=round(safe_initial_life, 2),
         total_thermal_life_consumed_hours=round(consumed, 2),
         remaining_thermal_life_hours=round(remaining_life, 2),
         travel_time_hours=round(travel_time_hours, 2) if travel_time_hours is not None else None,
@@ -265,4 +328,5 @@ def evaluate_shipment_thermal_life(
         manual_review_required=manual_review,
         fallback_message=fallback_str,
         model_label=MODEL_DESCRIPTION,
+        is_thermal_exhausted=is_exhausted,
     )

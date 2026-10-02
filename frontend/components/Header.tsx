@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
-import { Milk, RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Milk, RefreshCw, Wifi, WifiOff, Clock, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Navbar } from './Navbar';
+import { setOfflineSimulation, getOfflineSimulation } from '../lib/api';
 
 interface HeaderProps {
   isOnline: boolean;
@@ -17,6 +18,14 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isLoading,
 }) => {
+  const [offlineSim, setOfflineSim] = useState<boolean>(getOfflineSimulation());
+
+  const handleToggleOffline = () => {
+    const next = !offlineSim;
+    setOfflineSim(next);
+    setOfflineSimulation(next);
+    onRefresh();
+  };
   return (
     <header className="bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -47,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
 
             {/* Connection Status */}
-            {isOnline ? (
+            {isOnline && !offlineSim ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <Wifi className="h-3.5 w-3.5 text-emerald-600" />
                 ONLINE — FASTAPI BACKEND
@@ -55,9 +64,32 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-300 shadow-xs animate-pulse">
                 <WifiOff className="h-3.5 w-3.5 text-amber-600" />
-                OFFLINE — USING LOCAL SIMULATION DATA
+                OFFLINE — STORE-AND-FORWARD MODE
               </span>
             )}
+
+            {/* Offline Simulation Mode Button */}
+            <button
+              onClick={handleToggleOffline}
+              title="Demonstrate Store-and-Forward / Offline Fallback Mode"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                offlineSim
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+              }`}
+            >
+              {offlineSim ? (
+                <>
+                  <ToggleRight className="h-3.5 w-3.5" />
+                  <span>Offline Sim Active</span>
+                </>
+              ) : (
+                <>
+                  <ToggleLeft className="h-3.5 w-3.5 text-slate-500" />
+                  <span>Simulate Offline</span>
+                </>
+              )}
+            </button>
 
             {/* Last Updated & Refresh */}
             <div className="flex items-center gap-1.5 pl-1 text-xs text-slate-500">

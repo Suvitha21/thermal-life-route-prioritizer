@@ -124,7 +124,7 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         {/* Clickable 6-Step Workflow Stepper Navigation Banner */}
-        <WorkflowStepper />
+        <WorkflowStepper deliverableGain={summary.deliverable_percentage_gain} />
 
         {/* Operational Fallback & Telemetry Alerts */}
         <EdgeCaseAlerts
